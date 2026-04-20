@@ -1,0 +1,38 @@
+[
+    {
+        "name": "\u041e\u0431\u044a\u0435\u043a\u0442 1 \u0438\u0437 \u044f\u0447\u0435\u0439\u043a\u0438 1 \u0432 \u044f\u0447\u0435\u0439\u043a\u0443 1",
+        "actions": [
+            [],
+            [],
+            "self.win.robot.addToolState(1)",
+            [],
+            [],
+            "self.win.robot.addToolState(0)",
+            []
+        ]
+    },
+    {
+        "name": "\u041e\u0431\u044a\u0435\u043a\u0442 2 \u0438\u0437 \u044f\u0447\u0435\u0439\u043a\u0438 1 \u0432 \u044f\u0447\u0435\u0439\u043a\u0443 1",
+        "actions": [
+            [],
+            [],
+            "self.win.robot.addToolState(1)",
+            [],
+            [],
+            "self.win.robot.addToolState(0)",
+            []
+        ]
+    },
+    {
+        "name": "\u041e\u0431\u044a\u0435\u043a\u0442 3 \u0438\u0437 \u044f\u0447\u0435\u0439\u043a\u0438 1 \u0432 \u044f\u0447\u0435\u0439\u043a\u0443 1",
+        "actions": [
+            [],
+            [],
+            "self.win.robot.addToolState(1)",
+            [],
+            [],
+            "self.win.robot.addToolState(0)",
+            []
+        ]
+    }
+]
