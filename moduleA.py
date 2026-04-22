@@ -41,12 +41,6 @@ class MainWindowA(QMainWindow, Ui_Dialog):
         self.ui.to_initial_button.clicked.connect(self.to_initial_pose)
         
         self.ui.save_log_button.clicked.connect(self.save_log)
-        
-        self.ui.save_stats_button.clicked.connect(self.save_stats_manual)
-        self.ui.add1_button.clicked.connect(lambda x: self.add_stats("1"))
-        self.ui.add2_button.clicked.connect(lambda x: self.add_stats("2"))
-        self.ui.add3_button.clicked.connect(lambda x: self.add_stats("3"))
-        self.ui.add_defect_button.clicked.connect(lambda x: self.add_stats("defect"))
 
         self.ui.class1_button.clicked.connect(lambda x: self.add_point_to_program("1"))
         self.ui.class2_button.clicked.connect(lambda x: self.add_point_to_program("2"))
@@ -108,48 +102,6 @@ class MainWindowA(QMainWindow, Ui_Dialog):
         self.robot.pause()
         self.lamp.yellow()
         self.log("Пауза")
-    
-    def update_stats(self):
-        for i, item in enumerate(self.stats.values()):
-            self.ui.stats_table.setItem(i, 0, QTableWidgetItem(str(item[0])))
-            self.ui.stats_table.setItem(i, 1, QTableWidgetItem(str(item[1])))
-        
-    def add_stats(self, obj: str):
-        self.stats[obj][0] += 1
-        self.stats[obj][1] = datetime.now().strftime("%x %X") 
-        self.update_stats()
-        self.history.append([obj, self.stats[obj][0], self.stats[obj][1]])
-        self.save_stats_auto()
-    
-    def save_stats_auto(self):
-        try:
-            exists = False
-            try:
-                with open("stats_auto.cvs", "r", encoding="utf-8_"):
-                    exists = True 
-            except:
-                ...
-            with open("stats_auto.cvs", "a", encoding="utf-8") as file:
-                writer = csv.writer(file)
-                if not exists:
-                    writer.writerow(["class", "amoutn", "time"])
-                
-                writer.writerow(self.history[-1])
-        except:
-            ...
-    
-    def save_stats_manual(self):
-        filename, _ = QFileDialog.getSaveFileName(self, "Сохранить статистику в файл", self.ui.file_name_editor.toPlainText() + ".csv", "CSV files (*.csv)")
-        if filename:
-            self.log("Сохранение статистики")
-            try:
-                with open(filename, "w", encoding="utf-8") as file:
-                    writer = csv.writer(file)
-                    writer.writerow(["class", "amoutn", "time"])
-                    for i in self.history:
-                        writer.writerow(i)
-            except:
-                self.log("Ошибка сохранения статистики в файл")
         
     def save_log(self):
         filename, _ = QFileDialog.getSaveFileName(self, "Сохранить логи в файл", self.ui.file_name_editor.toPlainText() + ".txt", "Text files (*.txt)")
@@ -185,7 +137,7 @@ class MainWindowA(QMainWindow, Ui_Dialog):
         if filename:
             self.log("Cохранение программы")
             try:
-                with open(filename, "w") as file:
+                with open(filename, "w", encoding='utf-8') as file:
                     json.dump(self.algoritm.save(), file, ensure_ascii=True, indent=4)
             except Exception as e:
                 self.log(f"Ошибка сохранения программы: {e}")

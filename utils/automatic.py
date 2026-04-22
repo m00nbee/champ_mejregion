@@ -7,21 +7,23 @@ from enum import Enum
 if __name__ == "__main__":
     from moduleA import MainWindowA
 
+class Palette:
+    cells = [[False] * 3] * 3
+    
 class OneAction(BaseModel):
     name: str
     actions: list[list|str]
+    obj_name: str 
+    start: str 
+    end: str
     def dump(self):
         return {
             "name": self.name,
-            "actions": [act for act in self.actions]
+            "obj_name": self.obj_name,
+            "start": self.start,
+            "end": self.end,
+            "actions": [act for act in self.actions],
         }
-
-    @classmethod
-    def load(cls, data):
-        return cls(
-            name=data["name"],
-            actions=[act for act in data["actions"]]
-        )
 
 class Coordinates(Enum):
     UPPER_TAKE_POSITION = []
@@ -57,12 +59,10 @@ class Algoritm:
         self.window = window 
         self.algoritm: list[OneAction] = []
         self.task: asyncio.Task = None
+        self.palette = Palette 
     
     def save(self):
         return [action.dump() for action in self.algoritm]
-    
-    def load(self, data):
-        self.algoritm = [OneAction.load(alg) for alg in data]
     
     def add(self, obj_name, start, end):
         self.algoritm.append(
@@ -76,10 +76,13 @@ class Algoritm:
                     getattr(Coordinates, f"TARGET_POSITION_{end}").value,
                     Coordinates.GRIPPER_OFF.value,
                     Coordinates.NEXT_ACTION_POSITION.value
-                ]
+                ],
+                obj_name=obj_name,
+                start=start,
+                end=end
             )
         )
-    
+        
     def remove(self):
         try:
             self.algoritm.pop()
@@ -88,10 +91,15 @@ class Algoritm:
     
     def clear(self):
         self.algoritm.clear()
+        self.window.ui.full_cell_label.setStyleSheet("background-color: white")
+        self.palette.cells = [[False] * 3] * 3
+
     
     def task_(self, alg: OneAction):
-        self.window.log(f"Загрузка действия {alg.name}")
-        result = None
+        self.window.log(f"Робот принял задачу {alg.name}")
+        result = True
+        if self.palette.cells[(int(alg.end) - 1) // 2][(int(alg.end) - 1) % 2]:
+            return False
         for action in alg.actions:
             if isinstance(action, str):
                 eval(action)
@@ -101,7 +109,7 @@ class Algoritm:
         if alg.name.startswith("Объект"):
             result = int(alg.name[-1])
         
-        self.window.log(f"Начало выполнения действия: {alg.name}")
+        # self.window.log(f"Начало выполнения действия: {alg.name}")
         return result
     
     def start(self, clear=False):
@@ -115,18 +123,18 @@ class Algoritm:
             self.task.cancel()
     
     def wait(self):
-        counter = 0
         target = time.time()
         while (not self.task is None and not self.window.robot.getRobotMode() is InterpreterStates.PROGRAM_IS_DONE.value):
             sc = time.time()
             if (sc - target) < 5:
-                self.window.robot.moveToInitialPose()
+                break
             
             if self.window.robot.getRobotMode() is Modes.MOVE_TO_START_M.value and self.window.robot.getRobotMode() is InterpreterStates.MOTION_NOT_ALLOWED_S.value:
                 self.window.robot.activateMoveToStart()
             else:
                 self.window.robot.play()
             
+            print("в wait")
             time.sleep(0.1)
     
     async def runner(self):
@@ -135,27 +143,31 @@ class Algoritm:
             # if not self.window.robot.engage():
             #     return
             self.window.robot.reset()
+            if len(self.algoritm) != 0:
+                self.window.log("Начало выполнения программы")
+                for action in self.algoritm:
+                    await asyncio.sleep(.4)
+                    while self.window.state.pause:
+                        await asyncio.sleep(0.5)
 
-            for alg in self.algoritm:
-                await asyncio.sleep(.4)
-                while self.window.state.pause:
+                    result = await asyncio.to_thread(self.task_, action)
+                    if result == False:
+                        self.window.log(f"Попытка перемещения двух объектов в одну ячейку")
+                        self.window.ui.full_cell_label.setStyleSheet("background-color: yellow")
+                        break 
+                    elif result == True:
+                        pass
+                    self.window.robot.play()
                     await asyncio.sleep(0.5)
-
-                result = await asyncio.to_thread(self.task_, alg)
-                if result:
-                    pass 
-                self.window.robot.play()
-                await asyncio.sleep(0.5)
-                self.window.robot.activateMoveToStart()
-                await asyncio.sleep(0.5)
-                self.window.robot.moveToInitialPose()
-                await asyncio.sleep(0.5)
-                self.window.robot.activateMoveToStart()
-                await asyncio.sleep(0.5)
-                self.window.log(f"Текущая позиция робота: {self.window.robot.getToolPosition()}")
-                await asyncio.to_thread(self.wait)
-            self.window.log("Алгоритм для перемещения пуст")
-        
+                    self.window.robot.activateMoveToStart()
+                    await asyncio.sleep(0.5)
+                    self.window.robot.moveToInitialPose()
+                    await asyncio.sleep(0.5)
+                    self.window.robot.activateMoveToStart()
+                    await asyncio.sleep(0.5)
+                    self.window.log(f"Текущая позиция робота: {self.window.robot.getToolPosition()}")
+                    await asyncio.to_thread(self.wait)
+            
         except asyncio.CancelledError:
             self.window.log("Остановка программы")
 
