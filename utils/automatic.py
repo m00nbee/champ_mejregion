@@ -58,7 +58,7 @@ class Algoritm:
     def __init__(self, window: "MainWindowA"):
         self.window = window 
         self.algoritm: list[OneAction] = []
-        self.task: asyncio.Task = None
+        self.task = None
         self.palette = Palette 
     
     def save(self):
@@ -180,7 +180,7 @@ class Algoritm:
                 await asyncio.sleep(0.1)
                 self.window.log("Робот закончил выполнение программы")
                 self.window.lamp.blue()
-                await asyncio.to_thread(self.window.robot.reset)
+                self.window.robot.reset()
             
             except:
                 ...

@@ -11,16 +11,17 @@ class Model:
         self.person = YOLO("yolo11n-cls.pt")
         self.capture = cv2.VideoCapture(0)
         self.window = window 
-        self.zone_mask = self.create_zone() # frame_shape надо получить
+        self.zone = [[50, 50], [450, 500]] # frame_shape надо получить
     
     def predict_person(self, img):
         result = self.person.predict(img, conf=0.5)
         data = result[0]
         state = False 
-        for cls in data.boxes.cls:
-            if self.window.ui.person_checkbox.isChecked() and int(cls) == 0:
-                state = True
-                self.window.log("Человек в рабочей зоне")
+        if not data.boxes is None:
+            for cls in data.boxes.cls:
+                if self.window.ui.person_checkbox.isChecked() and int(cls) == 0:
+                    state = True
+                    self.window.log("Человек в рабочей зоне")
         
         return state 
 
@@ -35,52 +36,52 @@ class Model:
         return classes
     
     def predict(self):
+        _, frame = self.capture.read()
         if self.model is None:
-            self.window.state.camera = False
             self.window.state.detect = False
             self.window.log("Выберите модель YOLO сначала")
+            return frame, [], False
         if not self.window.state.camera:
-            return
-        _, frame = self.capture.read()
+            return frame, [], False
         to_predict = self.items_to_predict()
 
-        results = self.model.predict(frame, conf=0.4, classes=to_predict)[0]
+        predict_result = self.model.predict(frame, conf=0.4)[0]
         img = frame.copy()
         state = self.predict_person(img)
-        
 
-        return img, results, state
-    
-    def draw_masks(self, img, result, state):
-        if not state and self.window.state.detect:
-            if result.masks is None:
-                return img
-            masks = result.masks.data.cpu().numpy()
-            boxes = result.boxes.xyxy.cpu().numpy()
-            clss = result.boxes.cls.cpu().numpy().astype(int)
-            confs = result.boxes.conf.cpu().numpy()
-            names = self.model.names
-
-            colors = {
-                0: (255, 0, 0),
-                1: (0, 255, 0),
-                2: (0, 0, 255),
-            }
-            mask_layer = np.zeros_like(img, dtype=np.uint8)
-            for mask, box, cls_id, conf in (zip(masks, boxes, clss, confs)):
-                x1, y1, x2, y2 = box.astype(int)
-
+        result = []
+        masks = predict_result.masks
+        boxes = predict_result.boxes
+        if not masks is None and not boxes is None and not masks is None:
+            for i in range(len(boxes)):
+                box = boxes.xyxy[i].cpu().numpy()
+                cls_id = int(boxes.cls[i].item())
+                conf = float(boxes.conf[i].item())
+                x1, x2, y1, y2 = box.astype(int)
                 x_center = int((x1 + x2) / 2)
                 y_center = int((y1 + y2) / 2)
+                print(x_center, y_center)
 
-                if self.zone_mask[x_center, y_center] == 255:
-                    color = colors[cls_id]
-                    mask_bin = (mask > 0.5).astype(np.uint8)
-                    mask_layer[mask_bin == 1] = color
-                    cv2.putText(img, f"{names[cls_id]} {conf:.2f}", (x1, y1), cv2.FONT_HERSHEY_COMPLEX, 2)
-            final_img = cv2.addWeighted(img, 1, mask_layer, 0.5, 0)
-            
-            return final_img
+                mask = masks.xy[i]
+                if self.zone[0][0] < x_center < self.zone[1][0] and self.zone[0][1] < y_center < self.zone[1][1]:
+                    result.append({"mask": mask, "box": box, "cls_id": cls_id, "conf": conf, "xy": [x_center, y_center]})
+        
+
+        return img, result, state
+    
+    def draw_masks(self, img, results):
+        overlay = img.copy()
+        for result in results:
+            mask = result["mask"]
+            pts = mask.reshape((-1, 1, 2)).astype(np.int32)
+            x1, y1, x2, y2 = result["box"]
+            # color = colors[result.cls_id]
+            cv2.fillPoly(overlay, [pts], color=(255, 255, 255))
+            cv2.putText(img, f"{result['cls_id']} {result['conf']:.2f}", (int(x1), int(y1)), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 255, 255))
+        
+        cv2.addWeighted(overlay, 0.5, img, 0.5, 0, img)
+        cv2.rectangle(img, self.zone[0], self.zone[1], (255, 255, 255), thickness=3)
+
         return img
     
     def set_model(self, model_path):
@@ -90,8 +91,5 @@ class Model:
         except Exception as e:
             self.window.log(f"Ошибка при выборе модели: {e}")
     
-    def create_zone(self, frame_shape):
-        mask = np.zeros(frame_shape[:2], dtype=np.uint8)
-        cv2.fillPoly(mask, [self.zone_coords], 255)
-        return mask
+        
     

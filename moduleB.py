@@ -15,10 +15,10 @@ class MainWindowB(MainWindowA):
         super().__init__()
         self.model = Model(self)
         self.camera_timer = QTimer()
-        self.camera_timer.setInterval(100)
+        self.camera_timer.start(200)
         self.camera_timer.timeout.connect(self.predict)
 
-        self.predict_move = PredictMove(self)
+        # self.predict_move = PredictMove(self)
     
     def init_ui(self):
         super().init_ui()
@@ -26,8 +26,8 @@ class MainWindowB(MainWindowA):
         self.ui.detection_button.clicked.connect(self.switch_detect)
         self.ui.choose_model_button.clicked.connect(self.select_model)
 
-    async def neiro_life(self):
-        ...
+    # def neiro_life(self):
+    #     ...
 
     def switch_camera(self):
         self.state.camera = not self.state.camera
@@ -46,10 +46,13 @@ class MainWindowB(MainWindowA):
                 self.log("Ошибка выбора модели")
     
     def predict(self):
-        img, result, state = self.model.predict()
-        img = self.model.draw_masks(img, result, state)
-        if img is not None:
-            self.ui.camera_label.setPixmap(self.convert_cv_qt(img))
+        if self.state.detect:
+            img, result, state = self.model.predict()
+            img = self.model.draw_masks(img, result)
+            if state:
+                self.log("Распознан человек")
+            if img is not None:
+                self.ui.camera_label.setPixmap(self.convert_cv_qt(img))
     
     def convert_cv_qt(self, cv_img):
         """Convert from an opencv image to QPixmap"""
@@ -62,7 +65,6 @@ class MainWindowB(MainWindowA):
 
 
 async def main(window: MainWindowB, event: asyncio.Event):
-    window.neiro_task = asyncio.create_task(window.neiro_life())
     while not event.is_set():
         await asyncio.sleep(0.5)
 

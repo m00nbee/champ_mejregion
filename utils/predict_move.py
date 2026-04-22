@@ -4,7 +4,7 @@ if __name__ == "__main__":
     from moduleB import MainWindowB
 
 class PredictMove:
-    def __init__(self, window: MainWindowB):
+    def __init__(self, window: "MainWindowB"):
         self.window = window
         self.matrix, _ = self.compute_homography() # понять какие координаты на изображении надо
         self.move = False
