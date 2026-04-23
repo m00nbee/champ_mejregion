@@ -7,21 +7,21 @@ if __name__ == "__main__":
 
 class Model:
     def __init__(self, window: "MainWindowB"):
-        self.model: YOLO = None
-        self.person = YOLO("yolo11n-cls.pt")
+        self.model = YOLO("yolo26s-seg.pt")
+        self.person = YOLO("yolo11n.pt")
         self.capture = cv2.VideoCapture(0)
         self.window = window 
         self.zone = [[50, 50], [450, 500]] # frame_shape надо получить
     
     def predict_person(self, img):
-        result = self.person.predict(img, conf=0.5)
+        result = self.person.predict(img, conf=0.5, classes=[0])
         data = result[0]
         state = False 
-        if not data.boxes is None:
-            for cls in data.boxes.cls:
-                if self.window.ui.person_checkbox.isChecked() and int(cls) == 0:
-                    state = True
-                    self.window.log("Человек в рабочей зоне")
+        if not data.boxes is None and len(data.boxes) > 0:
+            classes = data.boxes.cls.cpu().numpy()
+            if 0 in classes and self.window.ui.person_checkbox.isChecked():
+                # state = True
+                self.window.log("Человек в рабочей зоне")
         
         return state 
 
